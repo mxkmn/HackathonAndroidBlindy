@@ -30,9 +30,19 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
+    buildFeatures {
+        viewBinding = true
+    }
 }
 
 dependencies {
+    implementation files('libs/app-debug.aar')
+    implementation files('libs/data-debug.aar')
+    implementation files('libs/domain-debug.aar')
+
+    implementation 'org.altbeacon:android-beacon-library:2.19.5' // https://altbeacon.github.io/android-beacon-library
+    implementation 'com.lemmingapex.trilateration:trilateration:1.0.2'
+
     implementation("io.github.sceneview:arsceneview:0.9.7")
 
     implementation 'androidx.core:core-ktx:1.7.0'
