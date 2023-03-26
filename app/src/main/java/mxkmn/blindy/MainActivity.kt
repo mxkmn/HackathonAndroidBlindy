@@ -24,10 +24,13 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
 
     lateinit var sceneView: ArSceneView
     lateinit var statusText: TextView
+    lateinit var distanceText: TextView
     lateinit var placeModelButton: ExtendedFloatingActionButton
 
     var modelNode: ArModelNode? = null
-    var mePosition: Float3?=null
+    var pointPosition: Float3?=null
+    var mePosition: Float3?= Float3(0.0f,0.0f,0.0f)
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +43,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         )
 
         statusText = findViewById(R.id.statusText)
+        distanceText=findViewById(R.id.distance)
         sceneView = findViewById<ArSceneView?>(R.id.sceneView).apply {
             onArTrackingFailureChanged = { reason ->
                 statusText.text = reason?.getDescription(context)
@@ -50,11 +54,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         placeModelButton = findViewById<ExtendedFloatingActionButton>(R.id.placeModelButton).apply {
             setOnClickListener {
                 modelNode?.anchor()
-                modelNode?.anchor?.pose?.position?.let { objectPos ->
-                    mePosition?.let { mePos ->
-                        println("distance " + calculateDistance(mePos, objectPos))
-                    }
-                }
+                pointPosition = modelNode?.anchor?.pose?.position
                 placeModelButton.isVisible = false
                 sceneView.planeRenderer.isVisible = false
             }
@@ -66,6 +66,16 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
             beaconManager.coordinate.collect {
                 statusText.text = it.toString()
                 statusText.isGone = false
+
+                mePosition?.x= it.x.toFloat()
+                mePosition?.y= it.y.toFloat()
+                distanceText.text= "distance " + mePosition?.let { mePos ->
+                    pointPosition?.let { objPos ->
+                        calculateDistance(
+                            mePos, objPos
+                        )
+                    }
+                }
             }
         }
     }
@@ -107,7 +117,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
                 placeModelButton.isGone = !node.isTracking
             }
         }
-        mePosition = modelNode?.position
+
 
         sceneView.addChild(modelNode!!)
         // Select the model node by default (the model node is also selected on tap)
