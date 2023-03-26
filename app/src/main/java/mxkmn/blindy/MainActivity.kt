@@ -5,6 +5,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import dev.romainguy.kotlin.math.Float3
 import io.github.sceneview.ar.ArSceneView
@@ -16,8 +17,11 @@ import io.github.sceneview.math.Position
 import io.github.sceneview.utils.setFullScreen
 import kotlin.math.pow
 import kotlin.math.sqrt
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity(R.layout.activity_main) {
+    private val beaconManager by lazy { BeaconManager(this, this, lifecycleScope) }
+
     lateinit var sceneView: ArSceneView
     lateinit var statusText: TextView
     lateinit var placeModelButton: ExtendedFloatingActionButton
@@ -57,6 +61,25 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         }
 
         setupModelNode()
+
+        lifecycleScope.launch {
+            beaconManager.coordinate.collect {
+                statusText.text = it.toString()
+                statusText.isGone = false
+            }
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        beaconManager.start()
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        beaconManager.pause()
     }
 
     fun setupModelNode() {
