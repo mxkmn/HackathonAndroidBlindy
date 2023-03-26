@@ -9,6 +9,7 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import dev.romainguy.kotlin.math.Float3
 import io.github.sceneview.ar.ArSceneView
+import io.github.sceneview.ar.arcore.position
 import io.github.sceneview.ar.getDescription
 import io.github.sceneview.ar.node.ArModelNode
 import io.github.sceneview.ar.node.PlacementMode
@@ -18,13 +19,19 @@ import io.github.sceneview.utils.setFullScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.atan2
+import kotlin.math.pow
+import kotlin.math.sqrt
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity(R.layout.activity_main) {
+    private val beaconManager by lazy { BeaconManager(this, this, lifecycleScope) }
+
     lateinit var sceneView: ArSceneView
     lateinit var statusText: TextView
     lateinit var placeModelButton: ExtendedFloatingActionButton
 
     var modelNode: ArModelNode? = null
+    var mePosition: Float3?=null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,18 +54,31 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         placeModelButton = findViewById<ExtendedFloatingActionButton>(R.id.placeModelButton).apply {
             setOnClickListener {
                 modelNode?.anchor()
-                placeModelButton.isVisible = true
-                sceneView.planeRenderer.isVisible = true
+                modelNode?.anchor?.pose?.position?.let { objectPos ->
+                    mePosition?.let { mePos ->
+                        println("distance " + calculateDistance(mePos, objectPos))
+                    }
+                }
+                placeModelButton.isVisible = false
+                sceneView.planeRenderer.isVisible = false
             }
         }
 
         setupModelNode()
-
+        
         // пересчет поворота баннера
         lifecycleScope.launch {
             while (true) {
                 rotateModel()
                 delay(70)
+            }
+        }
+
+        // получение положения с маяков
+        lifecycleScope.launch {
+            beaconManager.coordinate.collect {
+                statusText.text = it.toString()
+                statusText.isGone = false
             }
         }
     }
@@ -75,6 +95,18 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         val angle = Math.toDegrees(atan2(direction.y.toDouble(), direction.z.toDouble())).toFloat()
 
         modelNode?.rotation = Rotation(0f, angle, 0f)
+    }
+    
+    override fun onResume() {
+        super.onResume()
+
+        beaconManager.start()
+    }
+
+    override fun onPause() {
+        super.onPause()
+
+        beaconManager.pause()
     }
 
     fun setupModelNode() {
@@ -102,8 +134,13 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
                 placeModelButton.isGone = !node.isTracking
             }
         }
+        mePosition = modelNode?.position
+
         sceneView.addChild(modelNode!!)
         // Select the model node by default (the model node is also selected on tap)
         sceneView.selectedNode = modelNode
     }
+
+    private fun calculateDistance(a:Float3, b:Float3) =
+        sqrt((a.x-b.x).pow(2) + (a.y-b.y).pow(2) + (a.z-b.z).pow(2))
 }
