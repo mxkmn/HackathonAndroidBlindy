@@ -1,11 +1,15 @@
 package mxkmn.blindy
 
+import android.annotation.SuppressLint
 import android.os.Bundle
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import dev.romainguy.kotlin.math.Float3
+import io.github.sceneview.ar.ArSceneView
 import io.github.sceneview.ar.arcore.position
 import io.github.sceneview.ar.getDescription
 import io.github.sceneview.ar.node.ArModelNode
@@ -24,13 +28,19 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
     private val binding by lazy { ActivityMainBinding.inflate(layoutInflater) }
     private val beaconManager by lazy { BeaconManager(this, this, lifecycleScope) }
 
-    var pointPosition: Float3? = null // our target
-    var modelNode: ArModelNode? = null
-    var userPosition: Float3? = null
+    private var targetPosition: Float3? = null
+    private var modelNode: ArModelNode? = null
+    private var userPosition: Float3? = Float3(0.0f,0.0f,0.0f)
+    lateinit var sceneView: ArSceneView
+    lateinit var statusText: TextView
+    lateinit var distanceText: TextView
+    lateinit var placeModelButton: ExtendedFloatingActionButton
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
+        statusText = findViewById(R.id.statusText)
+        distanceText=findViewById(R.id.distance)
         setFullScreen(
             findViewById(R.id.rootView),
             fullScreen = true,
@@ -38,19 +48,19 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
             fitsSystemWindows = false
         )
 
-        binding.sceneView.apply {
+        sceneView = findViewById<ArSceneView?>(R.id.sceneView).apply {
             onArTrackingFailureChanged = { reason ->
                 binding.statusText.text = reason?.getDescription(context)
                 binding.statusText.isGone = reason == null
             }
         }
 
-        binding.placeModelButton.apply {
+        placeModelButton = findViewById<ExtendedFloatingActionButton>(R.id.placeModelButton).apply {
             setOnClickListener {
                 modelNode?.anchor()
-                pointPosition = modelNode?.anchor?.pose?.position
+                targetPosition = modelNode?.anchor?.pose?.position
                 binding.placeModelButton.isVisible = false
-                binding.sceneView.planeRenderer.isVisible = false
+                sceneView.planeRenderer.isVisible = false
             }
         }
 
@@ -72,8 +82,9 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
 
                 userPosition?.x= it.x.toFloat()
                 userPosition?.y= it.y.toFloat()
+                @SuppressLint("SetTextI18n")
                 distanceText.text= "distance " + userPosition?.let { mePos ->
-                    pointPosition?.let { objPos ->
+                    targetPosition?.let { objPos ->
                         calculateDistance(
                             mePos, objPos
                         )
@@ -85,7 +96,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
 
     // поворот модели относительно камеры
     private fun rotateModel() {
-        val cameraPosition = binding.sceneView.cameraNode.worldPosition.toFloatArray().let { arr ->
+        val cameraPosition = sceneView.cameraNode.worldPosition.toFloatArray().let { arr ->
             Float3(arr[0], arr[1], arr[2])
         }
         val modelPosition = modelNode?.worldPosition?.toFloatArray().let { arr ->
@@ -111,7 +122,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
 
     private fun setupModelNode() {
         modelNode?.takeIf { !it.isAnchored }?.let {
-            binding.sceneView.removeChild(it)
+            sceneView.removeChild(it)
             it.destroy()
         }
 
@@ -125,7 +136,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
                 // Place the model origin at the bottom center
                 centerOrigin = Position(y = -1.0f)
             ) {
-                binding.sceneView.planeRenderer.isVisible = true
+                sceneView.planeRenderer.isVisible = true
             }
             onAnchorChanged = { node, _ ->
                 binding.placeModelButton.isGone = node.isAnchored
@@ -133,14 +144,13 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
             onHitResult = { node, _ ->
                 binding.placeModelButton.isGone = !node.isTracking
             }
-            
-            userPosition = position
-
-            binding.sceneView.addChild(this)
-
-            // Select the model node by default (the model node is also selected on tap)
-            binding.sceneView.selectedNode = this
         }
+        userPosition = modelNode?.position
+
+        sceneView.addChild(modelNode!!)
+
+        // Select the model node by default (the model node is also selected on tap)
+        sceneView.selectedNode = modelNode
     }
 
     private fun calculateDistance(a:Float3, b:Float3) =
