@@ -14,7 +14,11 @@ import io.github.sceneview.ar.getDescription
 import io.github.sceneview.ar.node.ArModelNode
 import io.github.sceneview.ar.node.PlacementMode
 import io.github.sceneview.math.Position
+import io.github.sceneview.math.Rotation
 import io.github.sceneview.utils.setFullScreen
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlin.math.atan2
 import kotlin.math.pow
 import kotlin.math.sqrt
 import kotlinx.coroutines.launch
@@ -61,7 +65,16 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         }
 
         setupModelNode()
+        
+        // пересчет поворота баннера
+        lifecycleScope.launch {
+            while (true) {
+                rotateModel()
+                delay(70)
+            }
+        }
 
+        // получение положения с маяков
         lifecycleScope.launch {
             beaconManager.coordinate.collect {
                 statusText.text = it.toString()
@@ -70,6 +83,20 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         }
     }
 
+    // поворот модели относительно камеры
+    fun rotateModel(){
+        val cameraPosition = sceneView.cameraNode.worldPosition.toFloatArray().let { arr ->
+            Float3(arr[0], arr[1], arr[2])
+        }
+        val modelPosition = modelNode?.worldPosition?.toFloatArray().let { arr ->
+            Float3(arr?.get(0) ?: 0f, arr?.get(1) ?: 0f, arr?.get(2) ?: 0f)
+        }
+        val direction = cameraPosition - modelPosition
+        val angle = Math.toDegrees(atan2(direction.y.toDouble(), direction.z.toDouble())).toFloat()
+
+        modelNode?.rotation = Rotation(0f, angle, 0f)
+    }
+    
     override fun onResume() {
         super.onResume()
 
@@ -92,8 +119,8 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
             applyPoseRotation = false
             loadModelGlbAsync(
                 context = this@MainActivity,
-                glbFileLocation = "models/spiderbot.glb",
-                autoAnimate = true,
+                glbFileLocation = "models/lustra.glb",
+                autoAnimate = false,
                 scaleToUnits = 1.0f,
                 // Place the model origin at the bottom center
                 centerOrigin = Position(y = -1.0f)
