@@ -21,6 +21,10 @@ class BeaconManager(activity: Activity, lifecycleOwner: LifecycleOwner, scope: L
     val coordinate: StateFlow<Point<Double>>
         get() = _coordinate
 
+    private val _azimuth = MutableStateFlow( 0 )
+    val azimuth: StateFlow<Int>
+        get() = _azimuth
+
     private val beaconsPositions = listOf(
         StateEnvironment("E6:96:DA:5C:82:59", Point(0.0, 0.0)), // одинокий кортеж
         StateEnvironment("F8:8E:31:1C:9A:21", Point(10.0, 0.0)), // токсичный уголок
@@ -39,6 +43,13 @@ class BeaconManager(activity: Activity, lifecycleOwner: LifecycleOwner, scope: L
             .observe(lifecycleOwner) { scope.launch {
                 parseBeacons(it)
             } }
+
+        indoorService.AzimuthManager.getAzimuthViewModel()
+            .observe(lifecycleOwner) { libAzimuth ->
+                scope.launch {
+                    libAzimuth?.let { _azimuth.emit(it.toInt()) }
+                }
+            }
     }
 
     fun start() {
