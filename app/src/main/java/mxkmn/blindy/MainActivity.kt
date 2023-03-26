@@ -1,14 +1,11 @@
 package mxkmn.blindy
 
 import android.os.Bundle
-import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isGone
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
-import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import dev.romainguy.kotlin.math.Float3
-import io.github.sceneview.ar.ArSceneView
 import io.github.sceneview.ar.arcore.position
 import io.github.sceneview.ar.getDescription
 import io.github.sceneview.ar.node.ArModelNode
@@ -18,20 +15,17 @@ import io.github.sceneview.math.Rotation
 import io.github.sceneview.utils.setFullScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import mxkmn.blindy.databinding.ActivityMainBinding
 import kotlin.math.atan2
 import kotlin.math.pow
 import kotlin.math.sqrt
-import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity(R.layout.activity_main) {
+    private val binding by lazy { ActivityMainBinding.inflate(layoutInflater) }
     private val beaconManager by lazy { BeaconManager(this, this, lifecycleScope) }
 
-    lateinit var sceneView: ArSceneView
-    lateinit var statusText: TextView
-    lateinit var placeModelButton: ExtendedFloatingActionButton
-
     var modelNode: ArModelNode? = null
-    var mePosition: Float3?=null
+    var userPosition: Float3? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,24 +37,23 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
             fitsSystemWindows = false
         )
 
-        statusText = findViewById(R.id.statusText)
-        sceneView = findViewById<ArSceneView?>(R.id.sceneView).apply {
+        binding.sceneView.apply {
             onArTrackingFailureChanged = { reason ->
-                statusText.text = reason?.getDescription(context)
-                statusText.isGone = reason == null
+                binding.statusText.text = reason?.getDescription(context)
+                binding.statusText.isGone = reason == null
             }
         }
 
-        placeModelButton = findViewById<ExtendedFloatingActionButton>(R.id.placeModelButton).apply {
+        binding.placeModelButton.apply {
             setOnClickListener {
                 modelNode?.anchor()
                 modelNode?.anchor?.pose?.position?.let { objectPos ->
-                    mePosition?.let { mePos ->
+                    userPosition?.let { mePos ->
                         println("distance " + calculateDistance(mePos, objectPos))
                     }
                 }
-                placeModelButton.isVisible = false
-                sceneView.planeRenderer.isVisible = false
+                binding.placeModelButton.isVisible = false
+                binding.sceneView.planeRenderer.isVisible = false
             }
         }
 
@@ -77,15 +70,15 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         // получение положения с маяков
         lifecycleScope.launch {
             beaconManager.coordinate.collect {
-                statusText.text = it.toString()
-                statusText.isGone = false
+                binding.statusText.text = it.toString()
+                binding.statusText.isGone = false
             }
         }
     }
 
     // поворот модели относительно камеры
-    fun rotateModel(){
-        val cameraPosition = sceneView.cameraNode.worldPosition.toFloatArray().let { arr ->
+    private fun rotateModel() {
+        val cameraPosition = binding.sceneView.cameraNode.worldPosition.toFloatArray().let { arr ->
             Float3(arr[0], arr[1], arr[2])
         }
         val modelPosition = modelNode?.worldPosition?.toFloatArray().let { arr ->
@@ -109,9 +102,9 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
         beaconManager.pause()
     }
 
-    fun setupModelNode() {
+    private fun setupModelNode() {
         modelNode?.takeIf { !it.isAnchored }?.let {
-            sceneView.removeChild(it)
+            binding.sceneView.removeChild(it)
             it.destroy()
         }
 
@@ -125,20 +118,21 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
                 // Place the model origin at the bottom center
                 centerOrigin = Position(y = -1.0f)
             ) {
-                sceneView.planeRenderer.isVisible = true
+                binding.sceneView.planeRenderer.isVisible = true
             }
             onAnchorChanged = { node, _ ->
-                placeModelButton.isGone = node.isAnchored
+                binding.placeModelButton.isGone = node.isAnchored
             }
             onHitResult = { node, _ ->
-                placeModelButton.isGone = !node.isTracking
+                binding.placeModelButton.isGone = !node.isTracking
             }
-        }
-        mePosition = modelNode?.position
+            userPosition = position
 
-        sceneView.addChild(modelNode!!)
-        // Select the model node by default (the model node is also selected on tap)
-        sceneView.selectedNode = modelNode
+            binding.sceneView.addChild(this)
+
+            // Select the model node by default (the model node is also selected on tap)
+            binding.sceneView.selectedNode = this
+        }
     }
 
     private fun calculateDistance(a:Float3, b:Float3) =
