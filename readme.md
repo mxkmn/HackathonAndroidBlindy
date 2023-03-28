@@ -10,7 +10,7 @@ It's a hackathon project by a team of four people:
 
 ## Demo
 
-![](demo.mp4)
+https://user-images.githubusercontent.com/75564533/228146515-8d203b65-365a-426a-a9d3-52145b046df9.mp4
 
 ## Result
 
