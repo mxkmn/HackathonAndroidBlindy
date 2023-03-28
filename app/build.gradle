@@ -30,12 +30,10 @@ android {
     kotlinOptions {
         jvmTarget = '1.8'
     }
-    buildFeatures {
-        viewBinding = true
-    }
 }
 
 dependencies {
+    // from https://github.com/CodeR-na-r1/IndoorService
     implementation files('libs/app-debug.aar')
     implementation files('libs/data-debug.aar')
     implementation files('libs/domain-debug.aar')

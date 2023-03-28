@@ -19,28 +19,28 @@ import io.github.sceneview.math.Rotation
 import io.github.sceneview.utils.setFullScreen
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import mxkmn.blindy.databinding.ActivityMainBinding
 import kotlin.math.atan2
 import kotlin.math.pow
 import kotlin.math.sqrt
 
+// Manually set Bluetooth and location permissions in Settings
+
 class MainActivity : AppCompatActivity(R.layout.activity_main) {
-    private val binding by lazy { ActivityMainBinding.inflate(layoutInflater) }
     private val beaconManager by lazy { BeaconManager(this, this, lifecycleScope) }
 
     private var targetPosition: Float3? = null
     private var modelNode: ArModelNode? = null
     private var userPosition: Float3? = Float3(0.0f,0.0f,0.0f)
-    lateinit var sceneView: ArSceneView
-    lateinit var statusText: TextView
-    lateinit var distanceText: TextView
-    lateinit var placeModelButton: ExtendedFloatingActionButton
 
+    private lateinit var sceneView: ArSceneView
+    private lateinit var statusText: TextView
+    private lateinit var distanceText: TextView
+    private lateinit var placeModelButton: ExtendedFloatingActionButton
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         statusText = findViewById(R.id.statusText)
-        distanceText=findViewById(R.id.distance)
+        distanceText = findViewById(R.id.distance)
         setFullScreen(
             findViewById(R.id.rootView),
             fullScreen = true,
@@ -50,8 +50,8 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
 
         sceneView = findViewById<ArSceneView?>(R.id.sceneView).apply {
             onArTrackingFailureChanged = { reason ->
-                binding.statusText.text = reason?.getDescription(context)
-                binding.statusText.isGone = reason == null
+                statusText.text = reason?.getDescription(context)
+                statusText.isGone = reason == null
             }
         }
 
@@ -59,14 +59,14 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
             setOnClickListener {
                 modelNode?.anchor()
                 targetPosition = modelNode?.anchor?.pose?.position
-                binding.placeModelButton.isVisible = false
+                placeModelButton.isVisible = false
                 sceneView.planeRenderer.isVisible = false
             }
         }
 
         setupModelNode()
         
-        // пересчет поворота баннера
+        // banner rotation update
         lifecycleScope.launch {
             while (true) {
                 rotateModel()
@@ -74,7 +74,7 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
             }
         }
 
-        // получение положения с маяков
+        // user coordinates update
         lifecycleScope.launch {
             beaconManager.coordinate.collect {
                 statusText.text = it.toString()
@@ -82,30 +82,15 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
 
                 userPosition?.x= it.x.toFloat()
                 userPosition?.y= it.y.toFloat()
+
                 @SuppressLint("SetTextI18n")
-                distanceText.text= "distance " + userPosition?.let { mePos ->
-                    targetPosition?.let { objPos ->
-                        calculateDistance(
-                            mePos, objPos
-                        )
+                distanceText.text = "distance " + (userPosition?.let { userPos ->
+                    targetPosition?.let { targetPos ->
+                        calculateDistance(userPos, targetPos)
                     }
-                }
+                } ?: "- no info (iBeacons not found)")
             }
         }
-    }
-
-    // поворот модели относительно камеры
-    private fun rotateModel() {
-        val cameraPosition = sceneView.cameraNode.worldPosition.toFloatArray().let { arr ->
-            Float3(arr[0], arr[1], arr[2])
-        }
-        val modelPosition = modelNode?.worldPosition?.toFloatArray().let { arr ->
-            Float3(arr?.get(0) ?: 0f, arr?.get(1) ?: 0f, arr?.get(2) ?: 0f)
-        }
-        val direction = cameraPosition - modelPosition
-        val angle = Math.toDegrees(atan2(direction.y.toDouble(), direction.z.toDouble())).toFloat()
-
-        modelNode?.rotation = Rotation(0f, angle, 0f)
     }
     
     override fun onResume() {
@@ -130,27 +115,39 @@ class MainActivity : AppCompatActivity(R.layout.activity_main) {
             applyPoseRotation = false
             loadModelGlbAsync(
                 context = this@MainActivity,
-                glbFileLocation = "models/lustra.glb",
+                glbFileLocation = "models/banner.glb",
                 autoAnimate = false,
                 scaleToUnits = 1.0f,
-                // Place the model origin at the bottom center
-                centerOrigin = Position(y = -1.0f)
+                centerOrigin = Position(y = -1.0f) // places the model origin at the bottom center
             ) {
                 sceneView.planeRenderer.isVisible = true
             }
             onAnchorChanged = { node, _ ->
-                binding.placeModelButton.isGone = node.isAnchored
+                placeModelButton.isGone = node.isAnchored
             }
             onHitResult = { node, _ ->
-                binding.placeModelButton.isGone = !node.isTracking
+                placeModelButton.isGone = !node.isTracking
             }
+
+            userPosition = this.position
+
+            sceneView.addChild(this)
+
+            sceneView.selectedNode = this
         }
-        userPosition = modelNode?.position
+    }
 
-        sceneView.addChild(modelNode!!)
+    private fun rotateModel() {
+        val cameraPosition = sceneView.cameraNode.worldPosition.toFloatArray().let { arr ->
+            Float3(arr[0], arr[1], arr[2])
+        }
+        val modelPosition = modelNode?.worldPosition?.toFloatArray().let { arr ->
+            Float3(arr?.get(0) ?: 0f, arr?.get(1) ?: 0f, arr?.get(2) ?: 0f)
+        }
+        val direction = cameraPosition - modelPosition
+        val angle = Math.toDegrees(atan2(direction.y.toDouble(), direction.z.toDouble())).toFloat()
 
-        // Select the model node by default (the model node is also selected on tap)
-        sceneView.selectedNode = modelNode
+        modelNode?.rotation = Rotation(0f, angle, 0f)
     }
 
     private fun calculateDistance(a:Float3, b:Float3) =
