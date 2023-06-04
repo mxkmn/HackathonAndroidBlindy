@@ -16,4 +16,8 @@ https://user-images.githubusercontent.com/75564533/228146515-8d203b65-365a-426a-
 
 We scored the maximum score. Unfortunately, first place went to the team with the more technically challenging project.
 
-![](result.png)
+![Team results](result.png)
+
+The result can be verified [here](https://myitacademy.ru/sertifikaty/) (e.g. for [@mxkmn](https://github.com/mxkmn) enter `1977339677` and `Ярков`)
+
+![Result for @mxkmn](result_mxkmn.jpg)
